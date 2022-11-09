@@ -71,7 +71,7 @@ class SampleJythonFileIngestModule(FileIngestModule):
 
         # Use blackboard class to index blackboard artifacts for keyword search
         blackboard = Case.getCurrentCase().getSleuthkitCase().getBlackboard()
-        media_array = ["/Downloads", "/Documents", "/Pictures", "/Videos", "/Public", "/Music"]
+        media_array = ["/Downloads", "/Documents", "/Pictures", "/Videos", "/Public", "/Persistent", "/Music"]
         test_str = str(file.getUniquePath())
         if test_str[test_str.find("home") + 5:test_str.find("/") - 1]:
           for x in media_array:
@@ -156,5 +156,31 @@ class SampleJythonFileIngestModule(FileIngestModule):
                   totLen = totLen + length
                   length = inputStream.read(buffer)
 
+        if ".cache" and "thumbnails" and "large" in test_str:
+            attrs = Arrays.asList(BlackboardAttribute(BlackboardAttribute.Type.TSK_SET_NAME,
+                                                      SampleJythonFileIngestModuleFactory.moduleName,
+                                                      "Cached thumbnail entries"))
+            art = file.newAnalysisResult(BlackboardArtifact.Type.TSK_INTERESTING_FILE_HIT,
+                                         Score.SCORE_LIKELY_NOTABLE,
+                                         None, "Web Cache", None, attrs).getAnalysisResult()
+
+            try:
+                blackboard.postArtifact(art, SampleJythonFileIngestModuleFactory.moduleName, context.getJobId())
+            except Blackboard.BlackboardException as e:
+                self.log(Level.SEVERE, "Error indexing artifact " + art.getDisplayName())
+
+            artifactList = file.getArtifacts(BlackboardArtifact.ARTIFACT_TYPE.TSK_INTERESTING_ITEM)
+            for artifact in artifactList:
+                attributeList = artifact.getAttributes()
+                for attrib in attributeList:
+                    self.log(Level.INFO, attrib.toString())
+
+            inputStream = ReadContentInputStream(file)
+            buffer = jarray.zeros(1024, "b")
+            totLen = 0
+            length = inputStream.read(buffer)
+            while (length != -1):
+                totLen = totLen + length
+                length = inputStream.read(buffer)
 
         return IngestModule.ProcessResult.OK
